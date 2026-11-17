@@ -285,6 +285,18 @@ class FunkinCamera extends extensions.flixel.FlxCameraEx
 			var thisIndex:Int = FlxG.cameras.list.indexOf(this);
 			var camerasUnderneath = FlxG.cameras.list.slice(0, thisIndex);
 			
+			// fade and flash stopped appearing LOL
+			// they still Dont sometimes but Shhh
+			for (cam in camerasUnderneath)
+				cam.drawFX();
+				
+			var captureList = camerasUnderneath.copy();
+			captureList.push(this);
+			_cameraTexture.drawCameraScreens(captureList);
+			
+			this.clearDrawStack();
+			this.canvas.graphics.clear();
+			
 			var backdrop:BitmapData = _cameraTexture;
 			var last:Null<RenderTexture> = null;
 			
@@ -299,13 +311,6 @@ class FunkinCamera extends extensions.flixel.FlxCameraEx
 					group.push(pending[j]);
 					j++;
 				}
-				
-				// fade and flash stopped appearing LOL
-				// they still Dont sometimes but Shhh
-				for (cam in camerasUnderneath)
-					cam.drawFX();
-					
-				if (last == null && camerasUnderneath.length > 0) _cameraTexture.drawCameraScreens(camerasUnderneath);
 				
 				var target:RenderTexture = (last == _backgroundRenderTexture) ? _chainRenderTexture : _backgroundRenderTexture;
 				
