@@ -500,11 +500,11 @@ class Controls extends FlxActionSet
 	{
 		final name = _name.toLowerCase();
 		
-		var keys = _keys.copy();
+		var keys = ClientPrefs.keyBinds.exists(name) ? ClientPrefs.keyBinds.get(name).copy() : _keys.copy();
 		while (keys.length < 2)
 			keys.push(FlxKey.NONE);
 			
-		var pads = _pads.copy();
+		var pads = ClientPrefs.gamepadBinds.exists(name) ? ClientPrefs.gamepadBinds.get(name).copy() : _pads.copy();
 		while (pads.length < 2)
 			pads.push(FlxGamepadInputID.NONE);
 			
@@ -525,8 +525,8 @@ class Controls extends FlxActionSet
 		}
 		
 		// make it bindable yo
-		ClientPrefs.addCustomKey(name, keys);
-		ClientPrefs.addCustomGamepad(name, pads);
+		ClientPrefs.addCustomKey(name, _keys.copy());
+		ClientPrefs.addCustomGamepad(name, _pads.copy());
 		customBindKey(name, keys);
 		customBindPad(name, pads);
 	}

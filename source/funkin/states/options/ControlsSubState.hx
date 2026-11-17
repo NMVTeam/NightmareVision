@@ -191,6 +191,7 @@ class ControlsSubState extends MusicBeatSubstate
 	
 	var leaving:Bool = false;
 	var bindingTime:Float = 0;
+	var extraTime:Float = 0;
 	
 	override function update(elapsed:Float)
 	{
@@ -223,26 +224,34 @@ class ControlsSubState extends MusicBeatSubstate
 					case d: d;
 				}
 				
-				handleIndex();
+				// controllers are insanely annoying and, for some reason, register the inputs at the same time as the bind.
+				// so. Artificial delay time !
+				if(extraTime > 0)
+					extraTime -= elapsed;
 				
-				if (!(controls.UI_LEFT_P && controls.UI_RIGHT_P) && (controls.UI_LEFT_P || controls.UI_RIGHT_P))
+				if(extraTime <= 0)
 				{
-					if (controls.UI_LEFT_P) currentBindIndex--;
-					else if (controls.UI_RIGHT_P) currentBindIndex++;
-					FlxG.sound.play(Paths.sound('scrollMenu'));
-				}
-				
-				if (controls.BACK)
-				{
-					ClientPrefs.reloadControls();
-					close();
-					FlxG.sound.play(Paths.sound('cancelMenu'));
-				}
-				
-				if (controls.ACCEPT)
-				{
-					state = REBIND;
-					currentBind.visible = false;
+					handleIndex();
+					
+					if (!(controls.UI_LEFT_P && controls.UI_RIGHT_P) && (controls.UI_LEFT_P || controls.UI_RIGHT_P))
+					{
+						if (controls.UI_LEFT_P) currentBindIndex--;
+						else if (controls.UI_RIGHT_P) currentBindIndex++;
+						FlxG.sound.play(Paths.sound('scrollMenu'));
+					}
+					
+					if (controls.BACK)
+					{
+						ClientPrefs.reloadControls();
+						close();
+						FlxG.sound.play(Paths.sound('cancelMenu'));
+					}
+					
+					if (controls.ACCEPT)
+					{
+						state = REBIND;
+						currentBind.visible = false;
+					}
 				}
 				
 			case SELECT_RESET:
@@ -270,15 +279,22 @@ class ControlsSubState extends MusicBeatSubstate
 				}
 				
 			case REBIND:
+				var isGamepad = false;
 				var inputID:Int = switch device
 				{
-					case Keys: FlxG.keys.firstJustPressed();
-					case Gamepad(id): FlxG.gamepads.getByID(id).firstJustPressedID();
+					case Keys: 
+						isGamepad = false;
+						FlxG.keys.firstJustPressed();
+					case Gamepad(id): 
+						isGamepad = true; 
+						FlxG.gamepads.getByID(id).firstJustPressedID();
 				}
 				if (inputID > -1)
 				{
 					currentOption.change(device, inputID);
 					FlxG.sound.play(Paths.sound('confirmMenu'));
+					extraTime = (isGamepad ? 0.2 : 0);
+					trace(extraTime);
 					state = SELECT;
 					currentBind.visible = true;
 				}
