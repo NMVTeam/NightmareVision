@@ -30,7 +30,7 @@ jobs: # FUCK MY LIFE BROOOOO
             - uses: actions/checkout@v7
               with:
                 submodules: true
-            - uses: krdlab/setup-haxe@v2.1.0
+            - uses: krdlab/setup-haxe@v2
 
               with: 
                 haxe-version: ${{ env.HAXE_VERSION }}
@@ -75,13 +75,13 @@ jobs: # FUCK MY LIFE BROOOOO
             - name: Compile build
               run: haxelib run lime build windows -D ${{inputs.buildFlags}}
             - name: Publish artifact
-              uses: actions/upload-artifact@v7.0.1
+              uses: actions/upload-artifact@v7
               with:
                 name: NightmareVision (Windows)
                 path: export/release/windows/bin
     #
     Linux:
-        runs-on: ubuntu-24.04
+        runs-on: ubuntu-26.04
         env:
           CC: gcc-13
           CXX: g++-13
@@ -90,7 +90,7 @@ jobs: # FUCK MY LIFE BROOOOO
             - uses: actions/checkout@v7
               with:
                 submodules: true
-            - uses: krdlab/setup-haxe@v2.1.0
+            - uses: krdlab/setup-haxe@v2
 
               with:
                 haxe-version: ${{ env.HAXE_VERSION }}
@@ -118,7 +118,7 @@ jobs: # FUCK MY LIFE BROOOOO
                 git -C .haxelib/lime/git checkout ${{ env.LIME_HASH }}
                 git -C .haxelib/lime/git submodule update --init --recursive --force
                 haxelib dev lime .haxelib/lime/git
-            - name: Rebuild Lime (Linux)
+            - name: Rebuild Lime
               run: |
                haxelib run lime rebuild cpp -release
                if [ ! -f .haxelib/lime/git/ndll/Linux64/lime.ndll ]; then
@@ -128,7 +128,7 @@ jobs: # FUCK MY LIFE BROOOOO
             - name: Compile build
               run: haxelib run lime build Project.xml linux -D ${{inputs.buildFlags}}
             - name: Publish artifact
-              uses: actions/upload-artifact@v7.0.1
+              uses: actions/upload-artifact@v7
               with:
                 name: NightmareVision (Linux)
                 path: export/release/linux/bin
@@ -140,7 +140,7 @@ jobs: # FUCK MY LIFE BROOOOO
             - uses: actions/checkout@v7
               with:
                 submodules: true
-            - uses: krdlab/setup-haxe@v2.1.0
+            - uses: krdlab/setup-haxe@v2
 
               with:
                 haxe-version: ${{ env.HAXE_VERSION }}
@@ -155,9 +155,9 @@ jobs: # FUCK MY LIFE BROOOOO
                 git -C .haxelib/lime/git checkout ${{ env.LIME_HASH }}
                 git -C .haxelib/lime/git submodule update --init --recursive --force
                 haxelib dev lime .haxelib/lime/git
-            - name: Rebuild Lime (Mac Intel)
+            - name: Rebuild Lime
               run: |
-               haxelib run lime rebuild cpp -64 -release
+               arch -x86_64 haxelib run lime rebuild cpp -release
                if [ ! -f .haxelib/lime/git/ndll/Mac64/lime.ndll ]; then
                  echo "ERROR: Missing Lime ndll"
                  exit 1
@@ -165,7 +165,7 @@ jobs: # FUCK MY LIFE BROOOOO
             - name: Compile build
               run: arch -x86_64 haxelib run lime build Project.xml mac -D ${{inputs.buildFlags}}
             - name: Publish artifact
-              uses: actions/upload-artifact@v7.0.1
+              uses: actions/upload-artifact@v7
               with:
                 name: NightmareVision (Mac Intel)
                 path: export/release/macos/bin
@@ -177,7 +177,7 @@ jobs: # FUCK MY LIFE BROOOOO
             - uses: actions/checkout@v7
               with:
                 submodules: true
-            - uses: krdlab/setup-haxe@v2.1.0
+            - uses: krdlab/setup-haxe@v2
 
               with:
                 haxe-version: ${{ env.HAXE_VERSION }}
@@ -192,7 +192,7 @@ jobs: # FUCK MY LIFE BROOOOO
                 git -C .haxelib/lime/git checkout ${{ env.LIME_HASH }}
                 git -C .haxelib/lime/git submodule update --init --recursive --force
                 haxelib dev lime .haxelib/lime/git
-            - name: Rebuild Lime (Mac ARM)
+            - name: Rebuild Lime
               run: |
                haxelib run lime rebuild cpp -release
                if [ ! -f .haxelib/lime/git/ndll/MacArm64/lime.ndll ]; then
@@ -204,7 +204,7 @@ jobs: # FUCK MY LIFE BROOOOO
             - name: Codesign build
               run: codesign --force --deep -s - export/release/macos/bin/*.app
             - name: Publish artifact
-              uses: actions/upload-artifact@v7.0.1
+              uses: actions/upload-artifact@v7
               with:
                 name: NightmareVision (Mac ARM)
                 path: export/release/macos/bin
