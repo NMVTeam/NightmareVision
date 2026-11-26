@@ -11,6 +11,9 @@ class ScriptedTransition extends BaseTransitionState
 	{
 		scriptPrefix = 'transitions';
 		initStateScript(scriptKey, false);
+		
+		// just in case cuz for some reason its diddy
+		scriptGroup.set('dispatchFinish', dispatchFinish);
 		super.create();
 		
 		scriptGroup.call('onLoad', []);
