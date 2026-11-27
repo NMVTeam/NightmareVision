@@ -380,7 +380,7 @@ class PlayableSong extends VocalGroup
 		{
 			localTime += elapsed * 1000 * pitch;
 			
-			if (localTime > getLongestLength())
+			if (localTime > inst?.length ?? 0)
 			{
 				stop();
 				onComplete.dispatch();
