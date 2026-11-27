@@ -38,7 +38,7 @@ import funkin.game.modchart.*;
 import funkin.game.StoryMeta;
 import funkin.input.InputSystem;
 import funkin.input.InputEvent;
-import funkin.audio.SyncedFlxSoundGroup;
+import funkin.audio.SongAudio;
 import funkin.data.SongMetaData;
 #if VIDEOS_ALLOWED
 import funkin.video.FunkinVideoSprite;
@@ -125,7 +125,7 @@ class PlayState extends MusicBeatState
 	function set_playbackRate(value:Float):Float
 	{
 		#if FLX_PITCH
-		if (generatedMusic) audio.pitch = playbackRate;
+		if (audio != null) audio.pitch = value;
 		
 		FlxG.animationTimeScale = value;
 		Conductor.safeZoneOffset = (ClientPrefs.safeFrames / 60) * 1000 * value;
@@ -143,7 +143,7 @@ class PlayState extends MusicBeatState
 	{
 		volumeMult = value;
 		
-		audio.volume *= volumeMult;
+		if (audio != null) audio.volume = volumeMult;
 		
 		return volumeMult;
 	}
@@ -248,7 +248,7 @@ class PlayState extends MusicBeatState
 	/**
 	 * Specialized container for song audio
 	 */
-	public var audio:PlayableSong;
+	public var audio:SongAudio;
 	
 	public var notes:FlxTypedGroup<Note>;
 	public var queueNotes:Array<QueueNote> = [];
@@ -777,9 +777,9 @@ class PlayState extends MusicBeatState
 		FlxG.watch.addFunction('Conductor: ', () -> Conductor.songPosition);
 		FlxG.watch.addFunction('SongTime: ', () -> FlxStringUtil.formatTime(Conductor.songPosition / 1000)
 			+ ' / '
-			+ FlxStringUtil.formatTime(audio.songLength / 1000));
-			
-		FlxG.watch.addFunction('Desync: ', () -> audio.getDesyncDifference(Math.abs(Conductor.songPosition - Conductor.offset)));
+			+ FlxStringUtil.formatTime(audio.length / 1000));
+		
+		FlxG.watch.addFunction('Desync: ', () -> audio.getDrift());
 		FlxG.watch.addFunction('curSec: ', () -> curSection);
 		FlxG.watch.addFunction('curBeat: ', () -> curBeat);
 		FlxG.watch.addFunction('curStep: ', () -> curStep);
@@ -928,7 +928,7 @@ class PlayState extends MusicBeatState
 			strums.onNoteHit.add((note, field) -> {
 				if (field.ID == 1) camZooming = true;
 				
-				if (field.playerControls || (!audio.splitVocals && !audio.trackSwap)) audio.setTrackVolumeState();
+				if (field.playerControls || (!audio.splitVocals && !audio.trackSwap)) audio.missed = false;
 				
 				if (field.playerControls && field.showRatings && !note.isSustainNote)
 				{
@@ -942,7 +942,7 @@ class PlayState extends MusicBeatState
 			{
 				if (combo > 5 && gf != null && gf.animOffsets.exists('sad')) gf.playAnimForDuration('sad', 1, true);
 				combo = 0;
-				audio.setTrackVolumeState(true);
+				audio.missed = true;
 				
 				if (instakillOnMiss) doDeathCheck(true);
 				
@@ -1024,15 +1024,11 @@ class PlayState extends MusicBeatState
 				
 				if (startOnTime < 0) startOnTime = 0;
 				
-				if (startOnTime > 0)
+				if (startOnTime > 0) clearNotesBefore(startOnTime);
+				
+				if (startOnTime > 0 || skipCountdown)
 				{
-					clearNotesBefore(startOnTime);
-					setSongTime(startOnTime - 350);
-					return;
-				}
-				else if (skipCountdown)
-				{
-					setSongTime(0);
+					startSong();
 					return;
 				}
 				
@@ -1128,12 +1124,8 @@ class PlayState extends MusicBeatState
 	{
 		if (time < 0) time = 0;
 		
-		audio.pause();
-		audio.time = time;
-		#if FLX_PITCH audio.pitch = playbackRate; #end
-		audio.play();
-		
-		audio.setTrackVolumeState();
+		audio.play(time);
+		audio.missed = false;
 		
 		Conductor.songPosition = time;
 		songTime = time;
@@ -1145,21 +1137,14 @@ class PlayState extends MusicBeatState
 	{
 		startingSong = false;
 		
-		audio.inst.onComplete = finishSong.bind(false);
-		
-		#if FLX_PITCH
-		audio.pitch = playbackRate;
-		#end
+		songLength = audio.length;
+		audio.volume = volumeMult;
 		
 		if (startOnTime > 0) setSongTime(startOnTime - 500);
+		else audio.play(Math.max(0, Conductor.songPosition));
 		startOnTime = 0;
 		
 		if (paused) audio.pause();
-		
-		songLength = audio.songLength;
-		
-		audio.volume = 1 * volumeMult;
-		audio.play();
 		
 		// Updating Discord Rich Presence (with Time Left)
 		if (automatedDiscord) DiscordClient.changePresence(rpcDescription, rpcSongName + ' ' + rpcDifficulty, null, true, songLength);
@@ -1255,20 +1240,16 @@ class PlayState extends MusicBeatState
 		
 		curSong = songData.song;
 		
-		audio = new PlayableSong();
+		audio = new SongAudio();
 		
 		var start = traceCheck ? Sys.time() : 0;
-		audio.loadSong(SONG);
+		audio.load(SONG);
 		if (traceCheck) trace('loading song took ${Sys.time() - start} seconds');
 		
-		audio.setTrackVolumeState();
-		add(audio);
-		
-		#if FLX_PITCH
 		audio.pitch = playbackRate;
-		#end
-		
-		audio.volume = 0;
+		audio.volume = volumeMult;
+		audio.onComplete.add(() -> finishSong(false));
+		add(audio);
 		
 		scripts.set('vocals', audio);
 		scripts.set('inst', audio.inst);
@@ -1616,7 +1597,7 @@ class PlayState extends MusicBeatState
 	{
 		if (paused)
 		{
-			if (audio.inst != null && !startingSong) checkResync();
+			audio?.resume();
 			
 			FlxTimer.globalManager.forEach((i:FlxTimer) -> if (!i.finished) i.active = true);
 			FlxTween.globalManager.forEach((i:FlxTween) -> if (!i.finished) i.active = true);
@@ -1636,12 +1617,7 @@ class PlayState extends MusicBeatState
 	
 	override public function onFocus():Void
 	{
-		if (!isDead && !paused)
-		{
-			resetDiscordRPC(Conductor.songPosition > 0.0);
-			
-			if (audio.inst != null && !startingSong) checkResync();
-		}
+		if (!isDead && !paused) resetDiscordRPC(Conductor.songPosition > 0.0);
 		
 		super.onFocus();
 	}
@@ -1665,27 +1641,9 @@ class PlayState extends MusicBeatState
 		else DiscordClient.changePresence(rpcDescription, rpcSongName + ' ' + rpcDifficulty, null, true, songLength - Conductor.songPosition - ClientPrefs.noteOffset);
 	}
 	
-	inline function checkResync():Void
-	{
-		final MAX_OFFSET:Float = 35 * playbackRate;
-		
-		final correctTime = Math.abs(Conductor.songPosition - Conductor.offset);
-		final delta = audio.getDesyncDifference(correctTime);
-		
-		if (delta > MAX_OFFSET) resyncVocals();
-	}
-	
 	public function resyncVocals():Void
 	{
-		if (finishTimer != null) return;
-		
-		trace('resyncing at ${Conductor.songPosition}');
-		
-		audio.pitch = playbackRate;
-		audio.volume = 1 * volumeMult;
-		audio.resync(Conductor.songPosition);
-		audio.setTrackVolumeState();
-		#if FLX_PITCH audio.pitch = playbackRate; #end
+		audio.resync();
 	}
 	
 	public var canAccessEditors:Bool = true;
@@ -1741,22 +1699,12 @@ class PlayState extends MusicBeatState
 		{
 			if (startedCountdown)
 			{
-				Conductor.songPosition += FlxG.elapsed * 1000 * playbackRate;
+				Conductor.songPosition += elapsed * 1000 * playbackRate;
 				if (Conductor.songPosition >= 0) startSong();
 			}
 		}
-		else
-		{
-			var deltaTime:Float = elapsed * 1000 * playbackRate;
-			if (audio.time == Conductor.lastSongPos) Conductor.songPosition += deltaTime;
-			else
-			{
-				if (Math.abs(audio.time - Conductor.songPosition) >= deltaTime) Conductor.songPosition = audio.time;
-				else Conductor.songPosition += deltaTime;
-				
-				Conductor.lastSongPos = audio.time;
-			}
-		}
+		else if (audio.playing) Conductor.songPosition = audio.time;
+		else if (!endingSong) Conductor.songPosition += elapsed * 1000 * playbackRate;
 		
 		currentSV = getSV(Conductor.songPosition);
 		Conductor.visualPosition = getVisualPosition();
@@ -1917,7 +1865,7 @@ class PlayState extends MusicBeatState
 				if (FlxG.keys.justPressed.ONE)
 				{
 					KillNotes();
-					audio.inst.onComplete();
+					audio.onComplete.dispatch();
 				}
 				if (FlxG.keys.justPressed.TWO)
 				{
@@ -2036,7 +1984,7 @@ class PlayState extends MusicBeatState
 		persistentDraw = true;
 		paused = true;
 		
-		if (audio.inst != null) audio.pause();
+		audio.pause();
 		openSubState(new PauseSubState());
 		
 		if (automatedDiscord) DiscordClient.changePresence(rpcPausedDescription, 'Paused');
@@ -2553,7 +2501,6 @@ class PlayState extends MusicBeatState
 	{
 		updateTime = false;
 		
-		audio.volume = 0;
 		audio.stop();
 		
 		if (songEndCallback == null)
@@ -2698,8 +2645,6 @@ class PlayState extends MusicBeatState
 		
 		var noteDiff:Float = Math.abs(note.strumTime - Conductor.songPosition + ClientPrefs.ratingOffset);
 		
-		audio.playerVolume = 1 * volumeMult;
-		
 		// tryna do MS based judgment due to popular demand
 		var daRating:Rating = Rating.judgeNote(note, noteDiff / playbackRate);
 		var judgeScore:Int = daRating.score;
@@ -2733,10 +2678,9 @@ class PlayState extends MusicBeatState
 			return;
 		}
 		
-		var prevTime:Float = Conductor.songPosition;
-		if (audio.inst?.playing) Conductor.songPosition = @:privateAccess audio.inst._channel.position;
-		// subtract latency
-		Conductor.songPosition -= lime.system.System.getTimer() - event.timer;
+		final prevTime:Float = Conductor.songPosition;
+		final latency:Float = (lime.system.System.getTimer() - event.timer) * playbackRate;
+		Conductor.songPosition = (audio.playing ? audio.liveTime : prevTime) - latency;
 		
 		if (generatedMusic && !endingSong)
 		{
@@ -2934,8 +2878,6 @@ class PlayState extends MusicBeatState
 	override function stepHit()
 	{
 		super.stepHit();
-		
-		if (!startingSong && !endingSong) checkResync();
 		
 		if (curStep == lastStepHit) return;
 		

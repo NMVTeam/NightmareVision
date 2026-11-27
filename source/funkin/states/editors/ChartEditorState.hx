@@ -52,7 +52,7 @@ import funkin.objects.note.*;
 import funkin.states.editors.ui.*;
 import funkin.backend.MusicBeatSubstate;
 import funkin.states.editors.ui.ChartEditorKit;
-import funkin.audio.SyncedFlxSoundGroup;
+import funkin.audio.SongAudio;
 
 #if sys
 import openfl.media.Sound;
@@ -147,7 +147,7 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 	private var noteTypeIntMap:Map<Int, String> = new Map<Int, String>();
 	private var noteTypeMap:Map<String, Null<Int>> = new Map<String, Null<Int>>();
 	
-	public var audio:PlayableSong;
+	public var audio:SongAudio;
 	
 	public var ignoreWarnings = false;
 	
@@ -346,7 +346,8 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 		
 		FlxG.sound.music?.stop();
 		
-		add(audio = new PlayableSong());
+		add(audio = new SongAudio());
+		audio.onComplete.add(() -> songEnded = true);
 		
 		// if (PlayState.noteSkin != null)
 		// {
@@ -1039,30 +1040,10 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 	
 	function loadSong():Void
 	{
-		final instVolume:Float = (audio.inst?.volume ?? 1), playerVolume:Float = audio.playerVolume, opponentVolume:Float = audio.opponentVolume;
+		audio.load(song);
 		
-		audio.stop();
-		audio.loadSong(song);
-		audio.pause();
-		
-		audio.inst.volume = instVolume;
-		audio.playerVolume = playerVolume;
-		audio.opponentVolume = opponentVolume;
-		
-		generateSong();
-		audio.pause();
 		Conductor.songPosition = sectionStartTime();
 		audio.time = Conductor.songPosition;
-	}
-	
-	function generateSong()
-	{
-		audio.inst.onComplete = function() {
-			Conductor.songPosition = (audio.songLength - endOffset);
-			songEnded = true;
-			
-			toggleMusic(false);
-		};
 	}
 	
 	inline function getSelectedEvents():Array<Array<Dynamic>>
@@ -1148,15 +1129,10 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 			keyboardControl = false;
 		}
 		
-		if (audio.time < 0)
+		if (songEnded || audio.time > (audio.length - endOffset))
 		{
-			Conductor.songPosition = 0;
 			toggleMusic(false);
-		}
-		else if (songEnded || audio.time > (audio.songLength - endOffset)) // fuck gou
-		{
-			Conductor.songPosition = (audio.songLength - endOffset);
-			toggleMusic(false);
+			audio.time = audio.length - endOffset;
 			songEnded = false;
 		}
 		
@@ -1236,7 +1212,7 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 		
 		audio.pitch = playbackSpeed;
 		
-		bpmTxt.text = '${calculateTime(FlxMath.roundDecimal(audio.time, 2))} / ${calculateTime(audio.songLength)} - Beat Snap: ${quantization}th'
+		bpmTxt.text = '${calculateTime(FlxMath.roundDecimal(audio.time, 2))} / ${calculateTime(audio.length)} - Beat Snap: ${quantization}th'
 			+ '\nSection: $curSec - Step: $curStep - Beat: ${FlxMath.roundDecimal(curDecBeat, 2)}';
 			
 		var playedSound:Array<Bool> = [for (_ in 0...song.lanes) false]; // Prevents ouchy sex sounds
@@ -1349,7 +1325,7 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 			
 			var delta:Float = (FlxG.mouse.wheel * Conductor.stepCrotchet * .8);
 			
-			if (!mouseQuant) audio.time = FlxMath.bound(audio.time - delta, 0, audio.songLength - endOffset);
+			if (!mouseQuant) audio.time = FlxMath.bound(audio.time - delta, 0, audio.length - endOffset);
 			else scrollQuantized(FlxG.mouse.wheel > 0);
 		}
 	}
@@ -1432,7 +1408,7 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 			openSubState(new ChartingOptionsSubmenu());
 		}
 		
-		if (FlxG.keys.justPressed.SPACE && audio.time < (audio.songLength - endOffset)) togglePause();
+		if (FlxG.keys.justPressed.SPACE && audio.time < (audio.length - endOffset)) togglePause();
 		
 		if (!FlxG.keys.pressed.ALT && FlxG.keys.justPressed.R)
 		{
@@ -1452,7 +1428,7 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 			
 			var delta:Float = (700 * FlxG.elapsed * holdingShift);
 			
-			audio.time = FlxMath.bound(audio.time + delta * (FlxG.keys.pressed.W ? -1 : 1), 0, audio.songLength - endOffset);
+			audio.time = FlxMath.bound(audio.time + delta * (FlxG.keys.pressed.W ? -1 : 1), 0, audio.length - endOffset);
 		}
 		
 		if (FlxG.keys.justPressed.RIGHT) changeQuantization(1);
@@ -1558,7 +1534,7 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 		var nextBeat:Float = ((up ? Math.ceil : Math.floor)((beat + (increase * leniency) * (up ? -1 : 1)) / increase) * increase);
 		
 		var time:Float = Conductor.beatToSeconds(nextBeat);
-		time = FlxMath.bound(time, 0, audio.songLength - endOffset);
+		time = FlxMath.bound(time, 0, audio.length - endOffset);
 		
 		if (!vortex)
 		{
@@ -1617,7 +1593,7 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 	{
 		metronomeVolume = (ui.songDialog.metronomeMuteCheckbox.value ? 0 : ui.songDialog.metronomeVolumeStepper.value);
 		
-		audio.inst.volume = (ui.songDialog.instrumentalMuteCheckbox.value ? 0 : ui.songDialog.instrumentalVolumeStepper.value);
+		audio.instVolume = (ui.songDialog.instrumentalMuteCheckbox.value ? 0 : ui.songDialog.instrumentalVolumeStepper.value);
 		
 		audio.opponentVolume = (ui.songDialog.opponentMuteCheckbox.value ? 0 : ui.songDialog.opponentVolumeStepper.value);
 		
@@ -1756,7 +1732,7 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 		}
 		
 		lastSecBeats = getSectionBeats();
-		if (sectionStartTime(1) >= audio.songLength) lastSecBeatsNext = 0;
+		if (sectionStartTime(1) >= audio.length) lastSecBeatsNext = 0;
 		else getSectionBeats(curSec + 1);
 		
 		updateHeads();
@@ -1834,8 +1810,8 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 		final scale:Float = waveformSprite.frameWidth;
 		
 		if (instWave) drawWave(audio.inst, scale * (both ? 1 / 3 : 0), scale * (both ? 2 / 3 : 1));
-		if (vocalsWave) drawWave(audio.playerVocals?.getFirstAlive(), 0, scale * (both ? 1 / 3 : .5));
-		if (opponentVocalsWave) drawWave(audio.opponentVocals?.getFirstAlive(), scale * (both ? 2 / 3 : .5), null);
+		if (vocalsWave) drawWave(audio.playerVocals, 0, scale * (both ? 1 / 3 : .5));
+		if (opponentVocalsWave) drawWave(audio.opponentVocals, scale * (both ? 2 / 3 : .5), null);
 		
 		waveformPrinted = true;
 		#end
@@ -2017,7 +1993,7 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 	{
 		if (play && !audio.playing)
 		{
-			audio.play(true, audio.time);
+			audio.play();
 			
 			Conductor.songPosition = audio.time;
 		}
@@ -2047,12 +2023,12 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 			}
 			else
 			{
-				newTime = audio.songLength - endOffset;
+				newTime = audio.length - endOffset;
 				
 				curSec = getSectionIndex(newTime);
 			}
 			
-			if (newTime <= audio.songLength - endOffset)
+			if (newTime <= audio.length - endOffset)
 			{
 				audio.time = newTime;
 				
@@ -2078,7 +2054,7 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 		
 		var blah1:Float = getSectionBeats();
 		var blah2:Float = getSectionBeats(curSec + 1);
-		if (sectionStartTime(1) > audio.songLength) blah2 = 0;
+		if (sectionStartTime(1) > audio.length) blah2 = 0;
 		
 		if (blah1 != lastSecBeats || blah2 != lastSecBeatsNext)
 		{
