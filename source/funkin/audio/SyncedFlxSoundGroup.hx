@@ -380,7 +380,6 @@ class PlayableSong extends VocalGroup
 		{
 			localTime += elapsed * 1000 * pitch;
 			
-			trace('time: $localTime - end: ${getLongestLength()}');
 			if (localTime > getLongestLength())
 			{
 				stop();
