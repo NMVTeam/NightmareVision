@@ -52,6 +52,7 @@ jobs: # FUCK MY LIFE BROOOOO
                   }
                 }
                 Run haxelib setup C:/haxelib
+                Run haxelib install hxcpp --quiet
                 Run haxelib install hxpkg --quiet
                 Run haxelib run hxpkg install
                 if (Test-Path .haxelib/lime) {
@@ -111,6 +112,7 @@ jobs: # FUCK MY LIFE BROOOOO
               run: |
                 set -euo pipefail
                 haxelib setup ~/haxelib
+                haxelib install hxcpp --quiet
                 haxelib install hxpkg --quiet
                 haxelib run hxpkg install
                 rm -rf .haxelib/lime
@@ -148,6 +150,7 @@ jobs: # FUCK MY LIFE BROOOOO
             - name: Install libs
               run: |
                 haxelib setup ~/haxelib
+                haxelib install hxcpp --quiet
                 haxelib install hxpkg --quiet
                 haxelib run hxpkg install
                 rm -rf .haxelib/lime
@@ -185,6 +188,7 @@ jobs: # FUCK MY LIFE BROOOOO
             - name: Install libs
               run: |
                 haxelib setup ~/haxelib
+                haxelib install hxcpp --quiet
                 haxelib install hxpkg --quiet
                 haxelib run hxpkg install
                 rm -rf .haxelib/lime
