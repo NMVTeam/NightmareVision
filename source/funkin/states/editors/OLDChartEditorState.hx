@@ -132,9 +132,8 @@ class OLDChartEditorState extends MusicBeatState
 		['Camera Fade', "Fades the game camera\n\nValue 1: Alpha\nValue 2: Duration"],
 		['Camera Flash', "Value 1: Color, Alpha (Optional)\nValue 2: Fade duration"],
 		['Camera Zoom', "Changes the Camera Zoom.\n\nValue 1: Zoom Multiplier (1 is default)\n\nIn case you want a tween, use Value 2 like this:\n\n\"3, elasticOut\"\n(Duration, Ease Type)"],
-		['Camera Zoom Chain', "Value 1: Camera Zoom Values (0.015, 0.03)\n(also you can add another two values to make it\nzoom screen shake(0.015, 0.03, 0.01, 0.01))\n\nValue 2: Total Amount of Beat Cam Zooms and\nthe space with eachother (4, 1)"],
-		['Screen Shake Chain', "Value 1: Screen Shake Values (0.003, 0.0015)\n\nValue 2: Total Amount of Screen Shake per beat]"], ['Set Cam Zoom', "Value 1: Zoom"],
 		['Set Cam Pos', "Value 1: X\nValue 2: Y"], ["Mult SV", "Changes the notes' scroll velocity via multiplication.\nValue 1: Multiplier"],
+		['Mult SV', 'Changes the notes scroll velocity via multiplication.\nValue 1: Multiplier']
 		["Constant SV", "Uses scroll velocity to set the speed to a constant number.\nValue 1: Constant"]];
 		
 	public var variables:Map<String, Dynamic> = new Map();
