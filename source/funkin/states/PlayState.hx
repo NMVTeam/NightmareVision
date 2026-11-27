@@ -1145,7 +1145,9 @@ class PlayState extends MusicBeatState
 	{
 		startingSong = false;
 		
-		audio.inst.onComplete = finishSong.bind(false);
+		audio.onComplete.add(() -> {
+			finishSong(false);
+		});
 		
 		#if FLX_PITCH
 		audio.pitch = playbackRate;
@@ -1672,7 +1674,7 @@ class PlayState extends MusicBeatState
 		final correctTime = Math.abs(Conductor.songPosition - Conductor.offset);
 		final delta = audio.getDesyncDifference(correctTime);
 		
-		if (delta > MAX_OFFSET) resyncVocals();
+		if (delta > MAX_OFFSET && audio.isPlaying) resyncVocals();
 	}
 	
 	public function resyncVocals():Void
@@ -1917,7 +1919,7 @@ class PlayState extends MusicBeatState
 				if (FlxG.keys.justPressed.ONE)
 				{
 					KillNotes();
-					audio.inst.onComplete();
+					audio.onComplete.dispatch();
 				}
 				if (FlxG.keys.justPressed.TWO)
 				{

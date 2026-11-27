@@ -231,13 +231,19 @@ class PlayableSong extends VocalGroup
 	 */
 	public var inst:Null<FlxSound> = null;
 	
+	public final onComplete:FlxSignal = new FlxSignal();
+	
 	/**
 	 * If true, the Inst is considered
 	 */
 	public var trackSwap:Bool = false;
 	
+	public var localTime:Float = 0;
+	public var maxDesyncDelta:Float = 35.0;
+	
 	public var splitVocals:Bool = false;
 	public var hasVoices:Bool = false;
+	public var isPlaying:Bool = false;
 	
 	/**
 	 * Loads an Inst, Vocals, Enemy track from a `Song` data
@@ -303,7 +309,15 @@ class PlayableSong extends VocalGroup
 		if (trackSwap && inst != null) inst.volume = 0;
 		if (endTime == null || endTime == 0) endTime = songLength; // ?
 		
+		isPlaying = true;
+		localTime = this.time;
 		super.play(forceRestart, startTime, endTime);
+	}
+	
+	override public function stop()
+	{
+		isPlaying = false;
+		super.stop();
 	}
 	
 	/**
@@ -334,5 +348,51 @@ class PlayableSong extends VocalGroup
 			opponentVolume = hasMissed ? 1 : 0;
 		}
 		else playerVolume = hasMissed ? 0 : 1;
+	}
+	
+	inline function isSoundPlaying(snd:FlxSound):Bool
+	{
+		if (snd == null) return false;
+		
+		return isPlaying && snd.playing && snd.length > localTime;
+	}
+	
+	public function getLongestLength():Float
+	{
+		var length:Float = 0.0;
+		for (snd in members)
+			length = Math.max(length, snd.length);
+			
+		return length;
+	}
+	
+	override public function resync(?baseTime:Float)
+	{
+		super.resync(baseTime);
+		localTime = this.time;
+	}
+	
+	override function update(elapsed:Float)
+	{
+		super.update(elapsed);
+		
+		if (isPlaying)
+		{
+			localTime += elapsed * 1000 * pitch;
+			
+			trace('time: $localTime - end: ${getLongestLength()}');
+			if (localTime > getLongestLength())
+			{
+				stop();
+				onComplete.dispatch();
+				isPlaying = false;
+			}
+		}
+	}
+	
+	override function destroy()
+	{
+		onComplete.removeAll();
+		super.destroy();
 	}
 }
