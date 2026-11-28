@@ -361,6 +361,10 @@ class FlxMacro
 					{
 						case FFun(f):
 							f.args[0].type = Context.defined("cpp") && !Context.defined("mac") ? (macro :cpp.SizeT) : (macro :haxe.Int64);
+							if (Context.defined("hl"))
+							{
+								f.args[0].type = macro :UInt; // hashlink fix for some reason?
+							}
 							f.expr = macro
 								{
 									var units:Array<String> = ["Bytes", "kB", "MB", "GB", "TB", "PB"];
