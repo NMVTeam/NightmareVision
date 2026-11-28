@@ -105,12 +105,10 @@ class DebugDisplay extends Sprite
 		The current memory usage of the garbage collector.
 	**/
 	public var gcMemory(get, never):Float;
-	
+
 	/**
-	 * The current memory usage of the entire program.
-	 * 
-	 * Only supported on `Windows` currently
-	 */
+		The current memory usage of the entire program.
+	**/
 	public var taskMemory(get, never):MemoryT;
 	
 	public var displayType:Int = FpsDisplayMode.SIMPLE;
