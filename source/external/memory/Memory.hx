@@ -1,8 +1,8 @@
 package external.memory;
 
-#if cpp
-typedef MemoryT = #if mac haxe.Int64 #else cpp.SizeT #end;
+typedef MemoryT = #if (cpp && !mac) cpp.SizeT #else haxe.Int64 #end
 
+#if cpp
 /**
  * Memory class to properly get accurate memory counts
  * for the program.
@@ -20,6 +20,4 @@ extern class Memory
 	@:native("getCurrentRSS")
 	public static function getCurrentUsage():MemoryT;
 }
-#else
-typedef MemoryT = haxe.Int64;
 #end
