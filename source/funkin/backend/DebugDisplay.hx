@@ -12,6 +12,8 @@ import funkin.input.Controls;
 import flixel.util.FlxStringUtil;
 import flixel.FlxG;
 
+import external.memory.Memory.MemoryT;
+
 /**
  * enum that handles the display type of the FPS counter.
  */
@@ -109,7 +111,7 @@ class DebugDisplay extends Sprite
 	 * 
 	 * Only supported on `Windows` currently
 	 */
-	public var taskMemory(get, never):Float;
+	public var taskMemory(get, never):MemoryT;
 	
 	public var displayType:Int = FpsDisplayMode.SIMPLE;
 	
@@ -247,7 +249,7 @@ class DebugDisplay extends Sprite
 		#end
 	}
 	
-	inline function get_taskMemory():Float
+	inline function get_taskMemory():MemoryT
 	{
 		return external.Native.getTaskMemory();
 	}

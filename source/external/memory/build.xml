@@ -1,5 +1,16 @@
 <xml>
-	<files id='haxe'>
+    <pragma once="true" />
+    <files id='haxe'>
+        <compilervalue name="-I" value="${this_dir}" />
+    </files>
+    <files id='__main__'>
 		<compilervalue name="-I" value="${this_dir}" />
 	</files>
+    <files id='memory'>
+		<compilervalue name="-I" value="${this_dir}" />
+        <file name="${this_dir}/Memory.c" />
+	</files>
+    <target id="haxe">
+        <files id="memory" />
+    </target>
 </xml>

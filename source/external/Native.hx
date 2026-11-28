@@ -28,12 +28,12 @@ class Native
 	 * 
 	 * Will fallback on `0.0` if it is not supported.
 	 */
-	public static function getTaskMemory()
+	public static function getTaskMemory():external.memory.Memory.MemoryT
 	{
 		#if cpp
 		return external.memory.Memory.getCurrentUsage();
 		#else
-		return 0.0;
+		return 0;
 		#end
 	}
 	
