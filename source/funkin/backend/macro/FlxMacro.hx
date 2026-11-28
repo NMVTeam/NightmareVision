@@ -360,7 +360,7 @@ class FlxMacro
 					switch (field.kind)
 					{
 						case FFun(f):
-							f.args[0].type = macro :#if (cpp && !mac) cpp.SizeT #else haxe.Int64 #end;
+							f.args[0].type = Context.defined("cpp") && !Context.defined("mac") ? (macro :cpp.SizeT) : (macro :haxe.Int64);
 							f.expr = macro
 								{
 									var units:Array<String> = ["Bytes", "kB", "MB", "GB", "TB", "PB"];
