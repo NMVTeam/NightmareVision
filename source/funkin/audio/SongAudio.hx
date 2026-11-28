@@ -25,10 +25,12 @@ class SongAudio extends FlxBasic
 	
 	// instrumental, or the main track when trackSwap is on 
 	public var inst(default, null):Null<FlxSoundEx> = null;
-	// player vocals, or the combined voices file if the song doesn't split them 
-	public var playerVocals(default, null):Null<FlxSoundEx> = null;
-	// opponent vocals, or the miss track when trackSwap is on 
-	public var opponentVocals(default, null):Null<FlxSoundEx> = null;
+	// every vocal track, sorted by lane with tracks that aren't tied to a lane last
+	public final vocals:Array<SongTrack> = [];
+	// first lane 0 track, or the combined voices file if the song doesn't split them
+	public var playerVocals(get, never):Null<FlxSoundEx>;
+	// first lane 1 track, or the miss track when trackSwap is on
+	public var opponentVocals(get, never):Null<FlxSoundEx>;
 	
 	// missing swaps from the main track to the miss track instead of muting vocals 
 	public var trackSwap(default, null):Bool = false;
@@ -58,14 +60,19 @@ class SongAudio extends FlxBasic
 	public var volume(default, set):Float = 1;
 	// volume of the inst track 
 	public var instVolume(default, set):Float = 1;
-	// volume of the player vocals 
-	public var playerVolume(default, set):Float = 1;
-	// volume of the opponent vocals, or the miss track with trackSwap 
-	public var opponentVolume(default, set):Float = 1;
-	// mutes player vocals while true, or swaps to the miss track with trackSwap 
-	public var missed(default, set):Bool = false;
-	
+	// volume of lane 0's tracks, same as getLaneVolume(0)
+	public var playerVolume(get, set):Float;
+	// volume of lane 1's tracks, or the miss track with trackSwap
+	public var opponentVolume(get, set):Float;
+	// lane 0's miss state, mutes its tracks while true, or swaps to the miss track with trackSwap
+	public var missed(get, set):Bool;
+
+	// every loaded sound, inst included, this is what gets synced
 	final tracks:Array<FlxSoundEx> = [];
+	// per lane volume, lanes that aren't in here are at 1. kept between loads
+	final laneVolumes:Map<Int, Float> = [];
+	// lanes that are currently muted from a miss
+	final missedLanes:Map<Int, Bool> = [];
 	
 	// the track everything syncs to, inst if there is one, otherwise the first vocal track 
 	var master:Null<FlxSoundEx> = null;
@@ -111,28 +118,29 @@ class SongAudio extends FlxBasic
 		
 		if (trackSwap)
 		{
-			inst = createTrack(Paths.trackSwap(song.song, 'main'));
-			opponentVocals = createTrack(Paths.trackSwap(song.song, 'miss'));
+			inst = createSound(Paths.trackSwap(song.song, 'main'));
+			addVocal('miss', 1, Paths.trackSwap(song.song, 'miss'));
 		}
 		else
 		{
-			inst = createTrack(Paths.inst(song.song));
-			
+			inst = createSound(Paths.inst(song.song));
+
 			if (song.needsVoices)
 			{
-				playerVocals = createTrack(Paths.voices(song.song, 'player') ?? Paths.voices(song.song));
-				opponentVocals = createTrack(Paths.voices(song.song, 'opp'));
+				for (name in Paths.voiceTracks(song.song))
+					addVocal(name, laneFromName(name), Paths.voices(song.song, name.length > 0 ? name : null));
 			}
 		}
-		
-		hasVoices = !trackSwap && (playerVocals != null || opponentVocals != null);
-		splitVocals = playerVocals != null && opponentVocals != null;
-		
-		master = inst ?? playerVocals ?? opponentVocals;
+
+		vocals.sort(compareTracks);
+
+		hasVoices = !trackSwap && vocals.length > 0;
+		splitVocals = !trackSwap && hasLaneTracks(0) && hasLaneTracks(1);
+
+		master = inst ?? (vocals.length > 0 ? vocals[0].sound : null);
 		if (master != null) master.onComplete = onMasterComplete;
-		
-		applyVolumes();
-		applyMissState();
+
+		applyAll();
 	}
 	
 	// stops and destroys every track
@@ -147,7 +155,9 @@ class SongAudio extends FlxBasic
 		}
 		
 		tracks.resize(0);
-		inst = playerVocals = opponentVocals = master = null;
+		vocals.resize(0);
+		missedLanes.clear();
+		inst = master = null;
 		trackSwap = splitVocals = hasVoices = false;
 	}
 	
@@ -230,7 +240,83 @@ class SongAudio extends FlxBasic
 		
 		return drift;
 	}
-	
+
+	// finds a vocal track by name, case insensitive. null if the song doesn't have it
+	public function getTrack(name:String):Null<SongTrack>
+	{
+		final lower = name.toLowerCase();
+
+		for (track in vocals)
+			if (track.name.toLowerCase() == lower) return track;
+
+		return null;
+	}
+
+	// every vocal track tied to a lane
+	public function getLaneTracks(lane:Int):Array<SongTrack>
+	{
+		return [for (track in vocals) if (track.lane == lane) track];
+	}
+
+	public function hasLaneTracks(lane:Int):Bool
+	{
+		for (track in vocals)
+			if (track.lane == lane) return true;
+
+		return false;
+	}
+
+	public function getLaneVolume(lane:Int):Float
+	{
+		return laneVolumes.get(lane) ?? 1.0;
+	}
+
+	// sets the volume for every track on a lane, sticks around if the song gets reloaded
+	public function setLaneVolume(lane:Int, value:Float):Void
+	{
+		laneVolumes.set(lane, value);
+
+		for (track in vocals)
+			if (track.lane == lane) applyTrack(track);
+	}
+
+	public function isLaneMissed(lane:Int):Bool
+	{
+		return missedLanes.get(lane) == true;
+	}
+
+	// mutes or unmutes a lane's tracks directly, hit() and miss() are usually what you want
+	public function setLaneMissed(lane:Int, value:Bool):Void
+	{
+		if (isLaneMissed(lane) == value) return;
+
+		missedLanes.set(lane, value);
+		applyAll();
+	}
+
+	// unmutes a lane after a note hit. a lane without its own tracks unmutes lane 0 instead, since its voice is in there
+	public function hit(lane:Int = 0):Void
+	{
+		if (trackSwap && lane != 0) return;
+
+		setLaneMissed(hasLaneTracks(lane) ? lane : 0, false);
+	}
+
+	// mutes a lane after a miss. a lane without its own tracks mutes lane 0 instead
+	public function miss(lane:Int = 0):Void
+	{
+		if (trackSwap && lane != 0) return;
+
+		setLaneMissed(hasLaneTracks(lane) ? lane : 0, true);
+	}
+
+	// unmutes every lane
+	public function resetMisses():Void
+	{
+		missedLanes.clear();
+		applyAll();
+	}
+
 	override function destroy():Void
 	{
 		FlxG.signals.preUpdate.remove(sync);
@@ -334,20 +420,47 @@ class SongAudio extends FlxBasic
 		nextResyncStamp = lastStamp + RESYNC_COOLDOWN;
 	}
 	
-	function createTrack(sound:Null<Sound>):Null<FlxSoundEx>
+	function createSound(sound:Null<Sound>):Null<FlxSoundEx>
 	{
 		if (sound == null) return null;
-		
+
 		final track = new FlxSoundEx();
 		track.loadEmbedded(sound);
 		#if FLX_PITCH
 		track.pitch = pitch;
 		#end
-		
+
 		FlxG.sound.list.add(track);
 		tracks.push(track);
-		
+
 		return track;
+	}
+
+	function addVocal(name:String, lane:Int, sound:Null<Sound>):Void
+	{
+		final created = createSound(sound);
+		if (created != null) vocals.push(new SongTrack(this, name, lane, created));
+	}
+
+	// Voices and Voices-player are lane 0, Voices-opp is lane 1, Voices-<number> is that lane, anything else isn't tied to a lane
+	static function laneFromName(name:String):Int
+	{
+		final lower = name.toLowerCase();
+
+		if (lower == '' || lower == 'player') return 0;
+		if (lower == 'opp') return 1;
+
+		return ~/^[0-9]+$/.match(lower) ? Std.parseInt(lower) : -1;
+	}
+
+	static function compareTracks(a:SongTrack, b:SongTrack):Int
+	{
+		final laneA = a.lane < 0 ? 0x7FFFFFFF : a.lane;
+		final laneB = b.lane < 0 ? 0x7FFFFFFF : b.lane;
+
+		if (laneA != laneB) return laneA < laneB ? -1 : 1;
+
+		return Reflect.compare(a.name.toLowerCase(), b.name.toLowerCase());
 	}
 	
 	function startTrack(track:FlxSoundEx, time:Float):Void
@@ -364,34 +477,35 @@ class SongAudio extends FlxBasic
 		else track.play(true, time);
 	}
 	
-	function applyVolumes():Void
+	function applyAll():Void
 	{
-		setTrackVolume(inst, instVolume);
-		setTrackVolume(playerVocals, playerVolume);
-		setTrackVolume(opponentVocals, opponentVolume);
+		applyInst();
+
+		for (track in vocals)
+			applyTrack(track);
 	}
-	
-	function applyMissState():Void
+
+	function applyInst():Void
 	{
-		if (trackSwap)
-		{
-			setTrackMuted(inst, missed);
-			setTrackMuted(opponentVocals, !missed);
-		}
-		else
-		{
-			setTrackMuted(playerVocals, missed);
-		}
+		if (inst == null || !inst.exists) return;
+
+		inst.volume = volume * instVolume;
+		setMuted(inst, trackSwap && isLaneMissed(0));
 	}
-	
-	inline function setTrackVolume(track:Null<FlxSoundEx>, level:Float):Void
+
+	// with trackSwap the miss track only plays while lane 0 is missed, otherwise a track is muted while its lane is
+	function applyTrack(track:SongTrack):Void
 	{
-		if (track != null && track.exists) track.volume = volume * level;
+		final sound = track.sound;
+		if (!sound.exists) return;
+
+		sound.volume = volume * getLaneVolume(track.lane) * track.volume;
+		setMuted(sound, trackSwap ? !isLaneMissed(0) : track.lane >= 0 && isLaneMissed(track.lane));
 	}
-	
-	inline function setTrackMuted(track:Null<FlxSoundEx>, value:Bool):Void
+
+	inline function setMuted(sound:FlxSoundEx, value:Bool):Void
 	{
-		if (track != null && track.exists && track.muted != value) track.muted = value;
+		if (sound.muted != value) sound.muted = value;
 	}
 	
 	function onFocusLost():Void
@@ -453,35 +567,54 @@ class SongAudio extends FlxBasic
 	function set_volume(value:Float):Float
 	{
 		volume = value;
-		applyVolumes();
+		applyAll();
 		return value;
 	}
-	
+
 	function set_instVolume(value:Float):Float
 	{
 		instVolume = value;
-		applyVolumes();
+		applyInst();
 		return value;
 	}
-	
+
+	function get_playerVocals():Null<FlxSoundEx>
+	{
+		for (track in vocals)
+			if (track.lane == 0) return track.sound;
+
+		return null;
+	}
+
+	function get_opponentVocals():Null<FlxSoundEx>
+	{
+		for (track in vocals)
+			if (track.lane == 1) return track.sound;
+
+		return null;
+	}
+
+	function get_playerVolume():Float return getLaneVolume(0);
+
 	function set_playerVolume(value:Float):Float
 	{
-		playerVolume = value;
-		applyVolumes();
+		setLaneVolume(0, value);
 		return value;
 	}
-	
+
+	function get_opponentVolume():Float return getLaneVolume(1);
+
 	function set_opponentVolume(value:Float):Float
 	{
-		opponentVolume = value;
-		applyVolumes();
+		setLaneVolume(1, value);
 		return value;
 	}
-	
+
+	function get_missed():Bool return isLaneMissed(0);
+
 	function set_missed(value:Bool):Bool
 	{
-		missed = value;
-		applyMissState();
+		setLaneMissed(0, value);
 		return value;
 	}
 }

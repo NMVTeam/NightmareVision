@@ -928,7 +928,7 @@ class PlayState extends MusicBeatState
 			strums.onNoteHit.add((note, field) -> {
 				if (field.ID == 1) camZooming = true;
 				
-				if (field.playerControls || (!audio.splitVocals && !audio.trackSwap)) audio.missed = false;
+				if (field.playerControls || (!audio.splitVocals && !audio.trackSwap)) audio.hit(field.ID);
 				
 				if (field.playerControls && field.showRatings && !note.isSustainNote)
 				{
@@ -938,11 +938,11 @@ class PlayState extends MusicBeatState
 				}
 			});
 			
-			inline function actualMiss()
+			inline function actualMiss(lane:Int)
 			{
 				if (combo > 5 && gf != null && gf.animOffsets.exists('sad')) gf.playAnimForDuration('sad', 1, true);
 				combo = 0;
-				audio.missed = true;
+				audio.miss(lane);
 				
 				if (instakillOnMiss) doDeathCheck(true);
 				
@@ -954,10 +954,10 @@ class PlayState extends MusicBeatState
 			}
 			
 			strums.onNoteMiss.add((note, field) -> {
-				if (!note.canMiss && field.playerControls && !note.blockHit) actualMiss();
+				if (!note.canMiss && field.playerControls && !note.blockHit) actualMiss(field.ID);
 			});
 			strums.onMissPress.add((key) -> {
-				actualMiss();
+				actualMiss(strums.ID);
 			});
 			
 			strums.showRatings = true;
@@ -1125,7 +1125,7 @@ class PlayState extends MusicBeatState
 		if (time < 0) time = 0;
 		
 		audio.play(time);
-		audio.missed = false;
+		audio.resetMisses();
 		
 		Conductor.songPosition = time;
 		songTime = time;

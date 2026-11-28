@@ -197,18 +197,87 @@ class Paths
 	
 	public static inline function voices(song:String, ?postFix:String, checkMods:Bool = true):Null<Sound>
 	{
-		var name = sanitize(song);
-		
+		final songKey = voicesPath(song, postFix, checkMods);
+
+		if (ClientPrefs.streamedMusic) return FunkinAssets.getVorbisSound(songKey);
+
+		return FunkinAssets.getSoundUnsafe(songKey);
+	}
+
+	/**
+	 * Resolves the path to a song's `Voices` file without loading it.
+	 */
+	public static function voicesPath(song:String, ?postFix:String, checkMods:Bool = true):String
+	{
+		final name = sanitize(song);
+
 		var songKey:String = '$name/Voices';
 		if (FunkinAssets.isDirectory(getPath('songs/$name/audio', null, checkMods))) songKey = '$name/audio/Voices';
-		
+
 		if (postFix != null) songKey += '-$postFix';
-		
-		songKey = findFileWithExts('songs/$songKey', ['ogg', 'wav'], null, checkMods);
-		
-		if (ClientPrefs.streamedMusic) return FunkinAssets.getVorbisSound(songKey);
-		
-		return FunkinAssets.getSoundUnsafe(songKey);
+
+		return findFileWithExts('songs/$songKey', ['ogg', 'wav'], null, checkMods);
+	}
+
+	/**
+	 * Finds every vocal track a song has, as the part after `Voices-` in each file name.
+	 *
+	 * A plain `Voices` file comes back as an empty string, and only when there is no `Voices-player`.
+	 */
+	public static function voiceTracks(song:String, checkMods:Bool = true):Array<String>
+	{
+		final name = sanitize(song);
+		final folder = FunkinAssets.isDirectory(getPath('songs/$name/audio', null, checkMods)) ? 'songs/$name/audio' : 'songs/$name';
+
+		final candidates:Array<String> = ['player', 'opp', ''];
+
+		for (file in listFileNames(folder, checkMods))
+		{
+			final ext = Path.extension(file).toLowerCase();
+			if (ext != 'ogg' && ext != 'wav') continue;
+
+			final base = Path.withoutExtension(file);
+			final lower = base.toLowerCase();
+
+			if (lower == 'voices') candidates.push('');
+			else if (lower.startsWith('voices-')) candidates.push(base.substr('voices-'.length));
+		}
+
+		final found:Array<String> = [];
+		final foundKeys:Array<String> = [];
+
+		for (suffix in candidates)
+		{
+			final key = suffix.toLowerCase();
+			if (foundKeys.contains(key)) continue;
+
+			if (FunkinAssets.exists(voicesPath(song, suffix.length > 0 ? suffix : null, checkMods)))
+			{
+				found.push(suffix);
+				foundKeys.push(key);
+			}
+		}
+
+		if (foundKeys.contains('player')) found.remove('');
+
+		return found;
+	}
+
+	static function listFileNames(directory:String, checkMods:Bool):Array<String>
+	{
+		final names:Array<String> = [for (path in listAllFilesInDirectory(directory, checkMods)) Path.withoutDirectory(path)];
+
+		#if ASSET_REDIRECT
+		for (file in FunkinAssets.readDirectory(getCorePath().replace(CORE_DIRECTORY, trail + 'assets/embeds') + directory))
+			names.push(file);
+		#end
+
+		final prefix = 'assets/$directory/';
+
+		for (id in openfl.utils.Assets.list())
+			if (id.startsWith(prefix) && id.indexOf('/', prefix.length) == -1) names.push(id.substr(prefix.length));
+
+		return names;
 	}
 	
 	public static inline function inst(song:String, ?postFix:String, checkMods:Bool = true):Sound
