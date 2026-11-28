@@ -1,7 +1,7 @@
 package external.memory;
 
 #if cpp
-typedef MemoryT = cpp.SizeT;
+typedef MemoryT = #if mac haxe.Int64 #else cpp.SizeT #end;
 
 /**
  * Memory class to properly get accurate memory counts
@@ -10,16 +10,16 @@ typedef MemoryT = cpp.SizeT;
  * even if the author is above this, thank you Leather128 for the Haxe Bindings!
  */
 @:buildXml('<include name="../../../../source/external/memory/build.xml" />')
-@:include("Memory.h")
+@:include("Memory.hpp")
 extern class Memory
 {
 	/**
 	 * Returns the current resident set size (physical memory use) measured
 	 * in bytes, or zero if the value cannot be determined on this OS.
 	 */
-	@:native("getCurrentRSS")
+	@:native("nmv::getCurrentRSS")
 	public static function getCurrentUsage():MemoryT;
 }
 #else
-typedef MemoryT = UInt;
+typedef MemoryT = haxe.Int64;
 #end
