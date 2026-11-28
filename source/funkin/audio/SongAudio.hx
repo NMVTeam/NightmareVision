@@ -8,7 +8,7 @@ import funkin.data.Song;
 // have you ever coded with your life on the line.
 
 @:access(flixel.sound.FlxSound)
-@:nullSafety(Strict)
+@:nullSafety(Off)
 class SongAudio extends FlxBasic
 {
 	// sync tuning, all in ms except RESYNC_COOLDOWN which is in seconds btw
