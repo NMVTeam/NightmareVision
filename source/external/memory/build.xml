@@ -8,7 +8,7 @@
 	</files>
     <files id='memory'>
 		<compilervalue name="-I" value="${this_dir}" />
-        <file name="${this_dir}/Memory.cpp" />
+        <file name="${this_dir}/Memory.c" />
 	</files>
     <target id="haxe">
         <files id="memory" />

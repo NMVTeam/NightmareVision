@@ -1,8 +1,9 @@
-#pragma once
+#ifndef MEMORY_H
+#define MEMORY_H
 
-namespace nmv
-{
-    
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
@@ -32,4 +33,9 @@ namespace nmv
 
 size_t getPeakRSS();
 size_t getCurrentRSS();
-} // namespace nmv
+
+#if defined(__cplusplus)
+}
+#endif
+
+#endif

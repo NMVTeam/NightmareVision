@@ -10,14 +10,14 @@ typedef MemoryT = #if mac haxe.Int64 #else cpp.SizeT #end;
  * even if the author is above this, thank you Leather128 for the Haxe Bindings!
  */
 @:buildXml('<include name="../../../../source/external/memory/build.xml" />')
-@:include("Memory.hpp")
+@:include("Memory.h")
 extern class Memory
 {
 	/**
 	 * Returns the current resident set size (physical memory use) measured
 	 * in bytes, or zero if the value cannot be determined on this OS.
 	 */
-	@:native("nmv::getCurrentRSS")
+	@:native("getCurrentRSS")
 	public static function getCurrentUsage():MemoryT;
 }
 #else

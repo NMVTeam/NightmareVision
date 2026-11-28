@@ -5,11 +5,8 @@
  *          http://creativecommons.org/licenses/by/3.0/deed.en_US
  */
 
-#include "Memory.hpp"
+#include "Memory.h"
 
-namespace nmv
-{
-    
 
 /**
  * Returns the current resident set size (physical memory use) measured
@@ -51,4 +48,3 @@ size_t getCurrentRSS( )
     return (size_t)0L;          /* Unsupported. */
 #endif
 }
-} // namespace nmv
