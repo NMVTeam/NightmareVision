@@ -1,12 +1,9 @@
-/*
- * Author:  David Robert Nadeau
- * Site:    http://NadeauSoftware.com/
- * License: Creative Commons Attribution 3.0 Unported License
- *          http://creativecommons.org/licenses/by/3.0/deed.en_US
- */
-
 #ifndef MEMORY_H
 #define MEMORY_H
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
@@ -34,47 +31,11 @@
 #error "Cannot define getCurrentRSS( ) for an unknown OS."
 #endif
 
+size_t getPeakRSS();
+size_t getCurrentRSS();
 
-
-/**
- * Returns the current resident set size (physical memory use) measured
- * in bytes, or zero if the value cannot be determined on this OS.
- */
-size_t getCurrentRSS( )
-{
-#if defined(_WIN32)
-    /* Windows -------------------------------------------------- */
-    PROCESS_MEMORY_COUNTERS info;
-    GetProcessMemoryInfo( GetCurrentProcess( ), &info, sizeof(info) );
-    return (size_t)info.WorkingSetSize;
-
-#elif defined(__APPLE__) && defined(__MACH__)
-    /* OSX ------------------------------------------------------ */
-    struct mach_task_basic_info info;
-    mach_msg_type_number_t infoCount = MACH_TASK_BASIC_INFO_COUNT;
-    if ( task_info( mach_task_self( ), MACH_TASK_BASIC_INFO,
-        (task_info_t)&info, &infoCount ) != KERN_SUCCESS )
-        return (size_t)0L;      /* Can't access? */
-    return (size_t)info.resident_size;
-
-#elif defined(__linux__) || defined(__linux) || defined(linux) || defined(__gnu_linux__)
-    /* Linux ---------------------------------------------------- */
-    long rss = 0L;
-    FILE* fp = NULL;
-    if ( (fp = fopen( "/proc/self/statm", "r" )) == NULL )
-        return (size_t)0L;      /* Can't open? */
-    if ( fscanf( fp, "%*s%ld", &rss ) != 1 )
-    {
-        fclose( fp );
-        return (size_t)0L;      /* Can't read? */
-    }
-    fclose( fp );
-    return (size_t)rss * (size_t)sysconf( _SC_PAGESIZE);
-
-#else
-    /* AIX, BSD, Solaris, and Unknown OS ------------------------ */
-    return (size_t)0L;          /* Unsupported. */
-#endif
+#if defined(__cplusplus)
 }
+#endif
 
-#endif // MEMORY_H
+#endif

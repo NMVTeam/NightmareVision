@@ -342,4 +342,46 @@ class FlxMacro
 		
 		return fields;
 	}
+	
+	/**
+	 * Makes FlxStringUtil.formatBytes use an Int since it uses a Float for some reason even tho you cant have decimal bytes???
+	 * @return Array<haxe.macro.Expr.Field>
+	 */
+	public static macro function buildFlxStringUtil():Array<haxe.macro.Expr.Field>
+	{
+		var cls:haxe.macro.Type.ClassType = Context.getLocalClass().get();
+		var fields:Array<haxe.macro.Expr.Field> = Context.getBuildFields();
+		
+		for (field in fields)
+		{
+			switch (field.name)
+			{
+				case "formatBytes":
+					switch (field.kind)
+					{
+						case FFun(f):
+							f.args[0].type = Context.defined("cpp") && !Context.defined("mac") ? (macro :cpp.SizeT) : (macro :haxe.Int64);
+							if (Context.defined("hl"))
+							{
+								f.args[0].type = macro :UInt; // hashlink fix for some reason?
+							}
+							f.expr = macro
+								{
+									var units:Array<String> = ["Bytes", "kB", "MB", "GB", "TB", "PB"];
+									var curUnit = 0;
+									while (Bytes >= 1024 && curUnit < units.length - 1)
+									{
+										Bytes = cast(Bytes / 1024);
+										curUnit++;
+									}
+									return flixel.math.FlxMath.roundDecimal(cast Bytes, Precision) + units[curUnit];
+								}
+						default:
+							throw "Invalid field";
+					}
+			}
+		}
+		
+		return fields;
+	}
 }

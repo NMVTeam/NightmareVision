@@ -12,6 +12,8 @@ import funkin.input.Controls;
 import flixel.util.FlxStringUtil;
 import flixel.FlxG;
 
+import external.memory.Memory.MemoryT;
+
 /**
  * enum that handles the display type of the FPS counter.
  */
@@ -103,13 +105,11 @@ class DebugDisplay extends Sprite
 		The current memory usage of the garbage collector.
 	**/
 	public var gcMemory(get, never):Float;
-	
+
 	/**
-	 * The current memory usage of the entire program.
-	 * 
-	 * Only supported on `Windows` currently
-	 */
-	public var taskMemory(get, never):Float;
+		The current memory usage of the entire program.
+	**/
+	public var taskMemory(get, never):MemoryT;
 	
 	public var displayType:Int = FpsDisplayMode.SIMPLE;
 	
@@ -199,9 +199,9 @@ class DebugDisplay extends Sprite
 		visible = displayType != FpsDisplayMode.DISABLED;
 		
 		#if cpp
-		var str = 'FPS: $currentFPS • [GC: ${FlxStringUtil.formatBytes(gcMemory)} | Task: ${FlxStringUtil.formatBytes(taskMemory)}]';
+		var str = 'FPS: $currentFPS • [GC: ${FlxStringUtil.formatBytes(cast gcMemory)} | Task: ${FlxStringUtil.formatBytes(taskMemory)}]';
 		#else
-		var str = 'FPS: $currentFPS • GC: ${FlxStringUtil.formatBytes(gcMemory)}';
+		var str = 'FPS: $currentFPS • GC: ${FlxStringUtil.formatBytes(cast gcMemory)}';
 		#end
 		
 		if (displayType == FpsDisplayMode.ADVANCED)
@@ -247,7 +247,7 @@ class DebugDisplay extends Sprite
 		#end
 	}
 	
-	inline function get_taskMemory():Float
+	inline function get_taskMemory():MemoryT
 	{
 		return external.Native.getTaskMemory();
 	}
